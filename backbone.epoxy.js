@@ -1234,20 +1234,13 @@
 			throw('Error parsing bindings: "'+declarations +'"\n>> '+error);
 		}
 
-		// Format the 'events' option:
-		// include events from the binding declaration along with a default 'change' trigger,
-		// then format all event names with a '.epoxy' namespace.
-		var events = _.map(_.union(bindings.events || [], ['change']), function(name) {
-			return name+'.epoxy';
-		}).join(' ');
-
 		// Apply bindings from native context:
 		_.each(bindings, function(accessor, handlerName) {
 
 			// Validate that each defined handler method exists before binding:
 			if (handlers.hasOwnProperty(handlerName)) {
 				// Create and add binding to the view's list of handlers:
-				view.b().push(new EpoxyBinding(view, $element, handlers[handlerName], accessor, events, context, bindings));
+				view.b().push(new EpoxyBinding(view, $element, handlers[handlerName], accessor, bindings.events, context, bindings));
 			} else if (!allowedParams.hasOwnProperty(handlerName)) {
 				throw('binding handler "'+ handlerName +'" is not defined.');
 			}
@@ -1290,12 +1283,24 @@
 		var self = this;
 		var tag = ($element[0].tagName).toLowerCase();
 		var changable = (tag == 'input' || tag == 'select' || tag == 'textarea' || $element.prop('contenteditable') == 'true');
+		var eventsArray = events || [];
 		var triggers = [];
 		var reset = function(target) {
 			self.set(self.$el, readAccessor(accessor), target);
 		};
-    
-    self.view = view;
+		
+		// By default all changeable form elements get the "change" event
+		if (changable) {
+			eventsArray.push('change');
+		}
+		
+		// Add ".epoxy" namespace to all events and join them as jQuery format
+		events = _.map(eventsArray || [], function(name) {
+			return name+'.epoxy';
+		}).join(' ');
+		
+
+		self.view = view;
 		self.$el = $element;
 		self.evt = events;
 		_.extend(self, handler);
@@ -1315,7 +1320,7 @@
 		// => Form element.
 		// => Binding handler has a getter method.
 		// => Value accessor is a function.
-		if (changable && handler.get && isFunction(accessor)) {
+		if (eventsArray.length > 0 && handler.get && isFunction(accessor)) {
 			self.$el.on(events, function(evt) {
 				accessor(self.get(self.$el, readAccessor(accessor), evt));
 			});
